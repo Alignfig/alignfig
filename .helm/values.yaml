@@ -5,7 +5,7 @@ python_api:
   args:
     _default:
     - --bind
-    - 0.0.0.0:${PORT}
+    - 0.0.0.0:$(PORT)
     - manage:app
   port:
     _default: 5000
