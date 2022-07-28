@@ -1,4 +1,4 @@
-{{ $host := pluck .Values.werf.env .Values.ingress.host | first | default .Values.ingress.host._default }}
+{{ $host := pluck .Values.werf.env .Values.ingress.host | first | default (printf .Values.ingress.host._default .Values.werf.env) }}
 {{ $certificateSecret := pluck .Values.werf.env .Values.ingress.certificate_secret | first | default .Values.ingress.certificate_secret._default }}
 ---
 apiVersion: networking.k8s.io/v1

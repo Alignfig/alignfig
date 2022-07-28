@@ -22,6 +22,7 @@ golang_web:
 
 ingress:
   host:
-    _default: alignfig.alexmakh.ru
+    _default: alignfig.%s.alexmakh.ru
+    production: alignfig.alexmakh.ru
   certificate_secret:
     _default: alignfig-tls
