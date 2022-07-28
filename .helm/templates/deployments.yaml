@@ -48,7 +48,7 @@ spec:
           - name: PYTHON_API_ALN_URL
             {{- $pythonPort := pluck $env $.Values.python_api.port | first | default $.Values.python_api.port._default }}
             {{- $pythonAlnPath := pluck $env $.Values.python_api.alignment_path | first | default $.Values.python_api.alignment_path._default }}
-            value: {{ printf "http://%s-%s:%s/%s" $.Chart.Name $pythonApi ( $port | toString ) $pythonAlnPath }}
+            value: {{ printf "http://%s-%s:%s/%s" $.Chart.Name $pythonApi ( $pythonPort | toString ) $pythonAlnPath }}
           {{- end }}
           - name: PORT
             value: {{ $port | quote }}
