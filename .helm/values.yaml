@@ -5,10 +5,12 @@ python_api:
   args:
     _default:
     - --bind
-    - 0.0.0.0:5000
+    - 0.0.0.0:${PORT}
     - manage:app
   port:
     _default: 5000
+  alignment_path:
+    _default: generate_fig
 golang_web:
   command:
     _default:

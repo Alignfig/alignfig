@@ -14,24 +14,43 @@
 {{if .Success}}
     <h1>Thanks for using our service!</h1>
     <img class="responsive_image" src="data:image/png;base64,{{.Image}}" alt="Blank"/>
-    {{if .Error}}
-        <h3>"{{.Error}}"</h3>
-    {{end}}
+    <p><a href="/">Go back</a></p>
 {{else}}
     <h1>Contact</h1>
     <form enctype="multipart/form-data" method="POST">
-        <label>Format:</label><br />
-        <input type="text" name="format"><br />
+        <label>Format: <a target="_blank" href="https://biopython.org/docs/1.76/api/Bio.AlignIO.html#file-formats">#From Biopython doc</a></label><br />
+        <select id="format" name="format">
+            <option value="clustal" selected>Clustal</option>
+            <option value="emboss">Emboss</option>
+            <option value="fasta">Fasta</option>
+            <option value="fasta-m10">Fasta-m10</option>
+            <option value="ig">Ig</option>
+            <option value="msf">Msf</option>
+            <option value="nexus">Nexus</option>
+            <option value="phylip">Phylip</option>
+            <option value="phylip-sequential">Phylip-sequential</option>
+            <option value="phylip-relaxed">Phylip-relaxed</option>
+            <option value="stockholm">Stockholm</option>
+            <option value="mauve">Mauve</option>
+          </select><br />
 
         <label>Type:</label><br />
-        <input type="text" name="type"><br />
+        <select id="type" name="type">
+            <option value="Protein" selected>Protein</option>
+            <option value="Nucleotide">Nucleotide</option>
+        </select><br />
 
         <label>Alignment:</label><br />
         <textarea name="alignment"></textarea><br />
 
         <label>Alignment file:</label><br />
-        <input type="file" name="uploadfile" />
+        <input type="file" name="uploadfile" /><br />
 
-        <input type="submit">
+        <p><input type="submit"></p>
     </form>
+    <p><a href="/">Clear form</a></p>
+{{end}}
+
+{{if ne .Error nil}}
+<h2>Error: "{{.Error}}"</h2>
 {{end}}

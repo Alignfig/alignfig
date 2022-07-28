@@ -1,6 +1,7 @@
 {{ $env := .Values.werf.env }}
-
-{{ range $smallName := list "python-api" "golang-web" }}
+{{ $pythonApi := "python-api" }}
+{{ $golangWeb := "golang-web" }}
+{{ range $smallName := list $golangWeb $pythonApi }}
 
 {{ $name := printf "%s-%s" $.Chart.Name $smallName }}
 {{ $underlineName := replace "-" "_" $smallName }}
@@ -43,8 +44,14 @@ spec:
         image: {{ index $.Values.werf.image $underlineName }}
         imagePullPolicy: Always
         env:
-          - name: PYTHON_API_URL
-            value: {{ printf "http://%s-python-api:5000/generate_fig" $.Chart.Name }}
+          {{- if eq $smallName $golangWeb }}
+          - name: PYTHON_API_ALN_URL
+            {{- $pythonPort := pluck $env $.Values.python_api.port | first | default $.Values.python_api.port._default }}
+            {{- $pythonAlnPath := pluck $env $.Values.python_api.alignment_path | first | default $.Values.python_api.alignment_path._default }}
+            value: {{ printf "http://%s-%s:%s/%s" $.Chart.Name $pythonApi $port $pythonAlnPath }}
+          {{- end }}
+          - name: PORT
+            value: {{ $port }}
         command:
 {{- range $comm := pluck $env $values.command | first | default $values.command._default }}
         - {{ $comm }}
