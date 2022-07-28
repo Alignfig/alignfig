@@ -1,0 +1,17 @@
+name: Deploy all infra
+on:
+  push:
+    branches:
+    - main
+jobs:
+  Werf-Converge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Converge
+        uses: werf/actions/converge@v1.2
+        with:
+          kube-config-base64-data: ${{ secrets.AWS1440_KUBECONFIG_BASE64_DATA }}
+        env:
+          WERF_SECRET_KEY: ${{ secrets.WERF_SECRET_KEY }}
