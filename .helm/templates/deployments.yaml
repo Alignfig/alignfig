@@ -51,7 +51,7 @@ spec:
             value: {{ printf "http://%s-%s:%s/%s" $.Chart.Name $pythonApi $port $pythonAlnPath }}
           {{- end }}
           - name: PORT
-            value: {{ $port }}
+            value: {{ $port | quote }}
         command:
 {{- range $comm := pluck $env $values.command | first | default $values.command._default }}
         - {{ $comm }}
