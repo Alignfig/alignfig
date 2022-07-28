@@ -1,0 +1,68 @@
+project: alignfig
+configVersion: 1
+---
+image: python_base
+from: python:3.9
+docker:
+  ENV:
+    PYTHONDONTWRITEBYTECODE: 1
+    PYTHONUNBUFFERED: 1
+---
+image: python_api
+fromImage: python_base
+docker:
+  ENV:
+    FLASK_APP: src/api/app.py
+  WORKDIR: /app
+  ENTRYPOINT: gunicorn --bind 0.0.0.0:5000 manage:app
+git:
+- add: /
+  to: /app
+  includePaths:
+  - requirements.txt
+  - src/python_api
+  - manage.py
+  stageDependencies:
+    install:
+    - requirements.txt
+    setup:
+    - "**/*"
+shell:
+  install:
+  - pip install -I -r /app/requirements.txt
+---
+artifact: golang_builder
+from: golang:1.18.2-alpine3.16
+git:
+- add: /src/golang_web
+  to: /app
+  stageDependencies:
+    install:
+    - go.mod
+    - go.sum
+    setup:
+    - "**/*"
+shell:
+  beforeInstall:
+  - apk add --update make build-base
+  install:
+  - cd /app
+  - go mod vendor
+  setup:
+    - cd /app
+    - make build
+---
+image: golang_web
+from: alpine:3.16
+import:
+  - artifact: golang_builder
+    add: /app/bin/golang_web
+    to: /golang_web
+    before: setup
+  - artifact: golang_builder
+    add: /app/index.html
+    to: /index.html
+    before: setup
+shell:
+  setup:
+  - chmod +x /golang_web

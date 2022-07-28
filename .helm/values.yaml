@@ -1,0 +1,25 @@
+python_api:
+  command:
+    _default:
+    - gunicorn
+  args:
+    _default:
+    - --bind
+    - 0.0.0.0:5000
+    - manage:app
+  port:
+    _default: 5000
+golang_web:
+  command:
+    _default:
+    - /golang_web
+  args:
+    _default: []
+  port:
+    _default: 8090
+
+ingress:
+  host:
+    _default: alignfig.alexmakh.ru
+  certificate_secret:
+    _default: alignfig-tls

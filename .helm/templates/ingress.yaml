@@ -1,0 +1,45 @@
+{{ $host := pluck .Values.werf.env .Values.ingress.host | first | default .Values.ingress.host._default }}
+{{ $certificateSecret := pluck .Values.werf.env .Values.ingress.certificate_secret | first | default .Values.ingress.certificate_secret._default }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+    app: {{ .Chart.Name }}
+  annotations:
+    nginx.ingress.kubernetes.io/auth-signin: https://$host/dex-authenticator/sign_in
+    nginx.ingress.kubernetes.io/auth-url: https://{{ .Chart.Name }}-dex-authenticator.{{ .Release.Namespace }}.svc.cluster.local/dex-authenticator/auth
+    nginx.ingress.kubernetes.io/auth-response-headers: X-Auth-Request-User,X-Auth-Request-Email
+spec:
+  ingressClassName: "nginx"
+  tls:
+  - hosts:
+    - {{ $host }}
+    secretName: {{ $certificateSecret }}
+  rules:
+  - host: {{ $host }}
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ .Chart.Name }}-golang-web
+            port:
+              name: http
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  certificateOwnerRef: false
+  secretName: {{ $certificateSecret }}
+  dnsNames:
+  - {{ $host }}
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer

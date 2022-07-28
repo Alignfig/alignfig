@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Index</title>
+    <style>
+        .responsive_image {
+          width: 100%;
+          height: auto;
+        }
+    </style>
+</head>
+<body>
+{{if .Success}}
+    <h1>Thanks for using our service!</h1>
+    <img class="responsive_image" src="data:image/png;base64,{{.Image}}" alt="Blank"/>
+    {{if .Error}}
+        <h3>"{{.Error}}"</h3>
+    {{end}}
+{{else}}
+    <h1>Contact</h1>
+    <form enctype="multipart/form-data" method="POST">
+        <label>Format:</label><br />
+        <input type="text" name="format"><br />
+
+        <label>Type:</label><br />
+        <input type="text" name="type"><br />
+
+        <label>Alignment:</label><br />
+        <textarea name="alignment"></textarea><br />
+
+        <label>Alignment file:</label><br />
+        <input type="file" name="uploadfile" />
+
+        <input type="submit">
+    </form>
+{{end}}

@@ -1,0 +1,58 @@
+{{ $env := .Values.werf.env }}
+
+{{ range $smallName := list "python-api" "golang-web" }}
+
+{{ $name := printf "%s-%s" $.Chart.Name $smallName }}
+{{ $underlineName := replace "-" "_" $smallName }}
+{{ $values := index $.Values $underlineName }}
+{{ $port := pluck $env $values.port | first | default $values.port._default }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    app: {{ $name }}
+spec:
+  ports:
+  - name: http
+    port: {{ $port }}
+  selector:
+    app: {{ $name }}
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ $name }}
+  labels:
+    app: {{ $name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+    spec:
+      imagePullSecrets:
+      - name: registrysecret
+      containers:
+      - name: {{ $name }}
+        image: {{ index $.Values.werf.image $underlineName }}
+        imagePullPolicy: Always
+        env:
+          - name: PYTHON_API_URL
+            value: {{ printf "http://%s-python-api:5000/generate_fig" $.Chart.Name }}
+        command:
+{{- range $comm := pluck $env $values.command | first | default $values.command._default }}
+        - {{ $comm }}
+{{- end }}
+        args:
+{{- range $arg := pluck $env $values.args | first | default $values.args._default }}
+        - {{ $arg }}
+{{- end }}
+        ports:
+          - containerPort: {{ $port }}
+{{- end }}
