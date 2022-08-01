@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, json
-from src.python_api.api.plot import generate_figure_from_json
-from src.python_api.variables import result_image_json, encoding
-from src.python_api.api.log import log
+from .plot import generate_figure_from_json
+from core.variables import result_image_json, encoding
+from .log import log
 
 
 app = Flask(__name__)

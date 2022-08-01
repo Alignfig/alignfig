@@ -1,4 +1,4 @@
-name: Deploy all infra
+name: Deploy to production
 on:
   push:
     branches:

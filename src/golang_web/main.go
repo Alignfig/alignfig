@@ -5,161 +5,237 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"html/template"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"time"
 
+	"github.com/gorilla/schema"
 	"github.com/hashicorp/go-hclog"
 )
 
 var (
-	url          = os.Getenv("PYTHON_API_ALN_URL")
+	alignmentUrl = os.Getenv("PYTHON_API_ALN_URL")
 	port         = os.Getenv("PORT")
-	templateFile = "index.html"
+	templateFile = "templates/index.html"
+
+	decoder = schema.NewDecoder()
+	encoder = schema.NewEncoder()
 )
 
-type AlignmentForm struct {
-	Alignment string `json:"alignment"`
-	Format    string `json:"alignment_format"`
-	Type      string `json:"alignment_type"`
+type Server struct {
+	server   *http.Server
+	template *template.Template
+	logger   hclog.Logger
 }
 
-type Status string
+func NewServer() *Server {
+	logger := hclog.L()
+	return &Server{
+		server: &http.Server{
+			Addr: fmt.Sprintf(":%s", port),
+			ErrorLog: logger.StandardLogger(&hclog.StandardLoggerOptions{
+				InferLevels:              true,
+				InferLevelsWithTimestamp: true,
+			}),
+		},
+		logger: logger,
+	}
+}
 
-var Waiting Status = "Waiting..."
-var Done Status = "Done!"
+func (s *Server) Close() {
+	hclog.L().Info("closing metrics server ...")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-type JsonResponse struct {
-	Success bool
-	Image   string `json:"image"`
-	Error   error  `json:"error"`
+	_ = s.server.Shutdown(ctx)
+}
+
+func (s *Server) Start(ctx context.Context) {
+	s.template = template.Must(template.ParseFiles(templateFile))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		handler := NewHandler(s.template, w, r, s.logger)
+		handler.Index()
+	})
+
+	s.logger.Debug("Starting web server")
+
+	s.server.ListenAndServe()
 }
 
 func main() {
-	SetLogLevel("debug")
+	SetLogLevel("info")
 	ctx := context.TODO()
-	tmpl := template.Must(template.ParseFiles(templateFile))
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", AlignmentHandler(ctx, tmpl))
-	server := http.Server{
-		Addr: fmt.Sprintf(":%s", port),
-		ErrorLog: hclog.L().StandardLogger(&hclog.StandardLoggerOptions{
-			InferLevels:              true,
-			InferLevelsWithTimestamp: true,
-		}),
-		Handler: mux,
-	}
+	server := NewServer()
+	server.Start(ctx)
 
-	hclog.L().Debug("Starting web server")
-	server.ListenAndServe()
 }
 
-func AlignmentHandler(ctx context.Context, tmpl *template.Template) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			hclog.L().Debug("Incoming GET request")
-			tmpl.Execute(w, nil)
-			return
-		}
-		hclog.L().Debug("Parsing form")
-		err := r.ParseMultipartForm(2 << 21)
+type JsonRequest struct {
+	Alignment    string `json:"alignment"`
+	Format       string `json:"alignment_format"`
+	Type         string `json:"alignment_type"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+type JsonResponse struct {
+	Success      bool   `schema:"ok"`
+	Image        string `json:"image" schema:"image"`
+	Error        string `json:"error" schema:"error"`
+	RefreshToken string `json:"refresh_token" schema:"refresh_token"`
+}
+
+type Handler struct {
+	response JsonResponse
+	w        http.ResponseWriter
+	r        *http.Request
+	tmpl     *template.Template
+	logger   hclog.Logger
+}
+
+func NewHandler(tmpl *template.Template, w http.ResponseWriter, r *http.Request, logger hclog.Logger) *Handler {
+	h := &Handler{
+		tmpl:   tmpl,
+		w:      w,
+		r:      r,
+		logger: logger.With("uri", r.RequestURI),
+	}
+	h.logger.Info(fmt.Sprintf("Incoming %s request", h.r.Method))
+	return h
+}
+
+func (h *Handler) Redirect() {
+	query := url.Values{}
+	err := encoder.Encode(h.response, query)
+
+	if err != nil {
+		h.ReturnError(500, err)
+		return
+	}
+	h.r.URL.RawQuery = query.Encode()
+
+	http.Redirect(h.w, h.r, h.r.URL.String(), http.StatusFound)
+}
+
+func (h *Handler) InitialRequestLogger(logger hclog.Logger) {
+	h.logger = logger.With("uri", h.r.RequestURI)
+}
+
+func (h *Handler) ReturnError(status int, err error) {
+	errorString := err.Error()
+	h.logger.Error(errorString)
+	h.response.Error = template.HTMLEscapeString(errorString)
+	h.Redirect()
+}
+
+func (h *Handler) Index() {
+	switch h.r.Method {
+	case http.MethodGet:
+		err := decoder.Decode(&h.response, h.r.URL.Query())
 		if err != nil {
-			ReturnError(w, 500, err, tmpl)
+			h.ReturnError(500, err)
 			return
 		}
-
-		hclog.L().Debug("Getting alignment")
-		var aln string
-		if file, _, err := r.FormFile("uploadfile"); err == nil {
-			defer file.Close()
-			buf := bytes.NewBuffer(nil)
-			if _, err := io.Copy(buf, file); err != nil {
-				ReturnError(w, 500, err, tmpl)
-				return
-			}
-			aln = buf.String()
-		} else {
-			aln = r.FormValue("alignment")
-		}
-
-		hclog.L().Debug("Generating request to api")
-		aln = base64.StdEncoding.EncodeToString([]byte(template.HTMLEscapeString(aln)))
-		alnFormat := template.HTMLEscapeString(r.FormValue("format"))
-		alnType := template.HTMLEscapeString(r.FormValue("type"))
-		alignment := AlignmentForm{
-			Alignment: aln,
-			Format:    alnFormat,
-			Type:      alnType,
-		}
-
-		hclog.L().Debug("Request to api")
-		jsonResp, err := sendJson(ctx, alignment)
+		h.tmpl.Execute(h.w, h.response)
+		return
+	case http.MethodPost:
+		alignment, err := h.ParseForm()
 		if err != nil {
-			ReturnError(w, 503, err, tmpl)
+			h.ReturnError(500, err)
+			return
+		}
+		resp, err := MakePostWithStruct(context.TODO(), fmt.Sprintf("%s/generate_fig", alignmentUrl), alignment)
+		if err != nil {
+			h.ReturnError(500, err)
 			return
 		}
 
-		hclog.L().Debug("Returning result")
-		jsonResp.Success = true
-		tmpl.Execute(w, jsonResp)
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		defer resp.Body.Close()
+		err = json.NewDecoder(resp.Body).Decode(&h.response)
+		if err != nil {
+			h.ReturnError(500, err)
+			return
+		}
+
+		h.logger.Debug("Returning result from api")
+
+		h.response.Success = true
+
+		h.Redirect()
 	}
 }
 
-func sendJson(ctx context.Context, jsonStruct AlignmentForm) (JsonResponse, error) {
-
-	var jsonVar JsonResponse
-
-	hclog.L().Debug("Marshalling request")
-	marshalJsonStruct, err := json.Marshal(jsonStruct)
+func (h *Handler) ParseForm() (JsonRequest, error) {
+	h.logger.Debug("Parsing form")
+	err := h.r.ParseMultipartForm(2 << 21)
 	if err != nil {
-		return jsonVar, err
+		h.ReturnError(500, err)
+		return JsonRequest{}, nil
 	}
 
-	hclog.L().Debug("Generating new request")
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(marshalJsonStruct))
-	hclog.L().With("Request", req, "Error", err)
-	if err != nil {
-		return jsonVar, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	hclog.L().Debug("Make api request")
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	hclog.L().With("Status", resp.Status, "Headers", resp.Header).Debug("")
-	if err != nil {
-		return jsonVar, err
+	h.logger.Debug("Getting alignment from form")
+	var aln string
+	if file, _, err := h.r.FormFile("uploadfile"); err == nil {
+		defer file.Close()
+		buf := bytes.NewBuffer(nil)
+		if _, err := io.Copy(buf, file); err != nil {
+			h.ReturnError(500, err)
+			return JsonRequest{}, nil
+		}
+		aln = buf.String()
+	} else {
+		aln = h.r.FormValue("alignment")
 	}
 
-	if resp.StatusCode > 399 {
-		return jsonVar, errors.New(resp.Status)
-	}
-	hclog.L().Debug("Decode response")
-	defer resp.Body.Close()
-	err = json.NewDecoder(resp.Body).Decode(&jsonVar)
-
-	return jsonVar, err
+	h.logger.Debug("Generating request struct from form values")
+	aln = base64.StdEncoding.EncodeToString([]byte(template.HTMLEscapeString(aln)))
+	alnFormat := template.HTMLEscapeString(h.r.FormValue("format"))
+	alnType := template.HTMLEscapeString(h.r.FormValue("type"))
+	return JsonRequest{
+		Alignment: aln,
+		Format:    alnFormat,
+		Type:      alnType,
+	}, nil
 }
-
-func ReturnError(w http.ResponseWriter, status int, err error, tmpl *template.Template) {
-	hclog.L().Error(err.Error())
-	w.WriteHeader(status)
-	tmpl.Execute(w, JsonResponse{Error: err, Success: true})
-}
-
 func SetLogLevel(logLevel string) {
 	options := hclog.LoggerOptions{
 		Level:             hclog.LevelFromString(logLevel),
 		JSONFormat:        true,
-		IncludeLocation:   false,
+		IncludeLocation:   true,
 		DisableTime:       false,
 		Color:             hclog.AutoColor,
 		IndependentLevels: false,
 	}
 	hclog.SetDefault(hclog.New(&options))
 
+}
+
+func MakePostWithStruct(ctx context.Context, url string, jsonStruct interface{}) (*http.Response, error) {
+
+	hclog.L().Debug("marshalling struct for new request")
+	marshalJsonStruct, err := json.Marshal(jsonStruct)
+	if err != nil {
+		return nil, err
+	}
+
+	hclog.L().Debug("generating new post request to python api")
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(marshalJsonStruct))
+	hclog.L().With("Request", req, "Error", err)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	hclog.L().Debug("python api request")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	hclog.L().With("Status", resp.Status, "Headers", resp.Header).Debug("")
+	return resp, nil
 }

@@ -1,7 +1,7 @@
 from matplotlib.figure import Figure
 import io
 import base64
-from src.python_api.api.log import log
+from core.api.log import log
 
 
 def savefig_to_b64(fig: Figure):

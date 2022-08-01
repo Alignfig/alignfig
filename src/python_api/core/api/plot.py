@@ -1,9 +1,9 @@
-from src.python_api.plot.plot_alignment import plot_alignment
-from src.python_api.alignment.alignment import AlignmentForPlot, \
+from core.plot.plot_alignment import plot_alignment
+from core.alignment.alignment import AlignmentForPlot, \
     AlignedNucleotideSequence, AlignedProteinSequence
-from src.python_api.variables import nucleotide, protein, request_alignment_type, \
+from core.variables import nucleotide, protein, request_alignment_type, \
     request_alignment_text, encoding, request_alignment_format
-from src.python_api.api.log import log
+from .log import log
 
 from typing import Dict
 import io

@@ -17,7 +17,7 @@
     <p><a href="/">Go back</a></p>
 {{else}}
     <h1>Contact</h1>
-    <form enctype="multipart/form-data" method="POST">
+    <form enctype="multipart/form-data" method="POST" url="/generate_fig">
         <label>Format: <a target="_blank" href="https://biopython.org/docs/1.76/api/Bio.AlignIO.html#file-formats">#From Biopython doc</a></label><br />
         <select id="format" name="format">
             <option value="clustal" selected>Clustal</option>
@@ -46,11 +46,13 @@
         <label>Alignment file:</label><br />
         <input type="file" name="uploadfile" /><br />
 
+        <input type="hidden" name="refresh_token" value="{{.RefreshToken}}"/><br />
+
         <p><input type="submit"></p>
     </form>
     <p><a href="/">Clear form</a></p>
 {{end}}
 
-{{if ne .Error nil}}
+{{if ne .Error ""}}
 <h2>Error: "{{.Error}}"</h2>
 {{end}}

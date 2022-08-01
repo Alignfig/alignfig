@@ -1,5 +1,4 @@
 from biotite.sequence.graphics import LetterTypePlotter
-from dataclasses import dataclass
 from typing import List
 
 

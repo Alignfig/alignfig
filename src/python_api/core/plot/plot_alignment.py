@@ -1,7 +1,7 @@
-from src.python_api.alignment.alignment import AlignmentForPlot
-from src.python_api.plot.common import savefig_to_b64
-from src.python_api.plot.biotite_plot_func import plot_alignment_type_based
-from src.python_api.api.log import log
+from core.alignment.alignment import AlignmentForPlot
+from .common import savefig_to_b64
+from .biotite_plot_func import plot_alignment_type_based
+from core.api.log import log
 
 import matplotlib.pyplot as plt
 

@@ -1,4 +1,4 @@
-.PHONY: build install clean
+.PHONY: build clean
 
 versionflags?=
 module?=github.com/alex123012/alignfig/src/golang_web

@@ -1,8 +1,8 @@
 from flask.cli import FlaskGroup
 import click
 
-from src.python_api.api.app import app
-from src.python_api.util.image_decoder import decode_image_to_file
+from core.api.app import app
+from core.util.image_decoder import decode_image_to_file
 
 cli = FlaskGroup(app)
 

@@ -12,16 +12,12 @@ image: python_api
 fromImage: python_base
 docker:
   ENV:
-    FLASK_APP: src/api/app.py
+    FLASK_APP: core/api/app.py
   WORKDIR: /app
   ENTRYPOINT: gunicorn --bind 0.0.0.0:5000 manage:app
 git:
-- add: /
+- add: /src/python_api
   to: /app
-  includePaths:
-  - requirements.txt
-  - src/python_api
-  - manage.py
   stageDependencies:
     install:
     - requirements.txt

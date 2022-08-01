@@ -3,10 +3,9 @@ from biotite.sequence import Sequence, LetterAlphabet, AlphabetError
 from Bio import AlignIO
 from Bio.Align import MultipleSeqAlignment
 
-from src.python_api.variables import encoding
-from src.python_api.api.log import log
+from core.variables import encoding
+from core.api.log import log
 
-import tempfile
 import numpy as np
 from typing import List, Any, Tuple
 
