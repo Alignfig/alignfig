@@ -45,10 +45,11 @@ spec:
         imagePullPolicy: Always
         env:
           {{- if eq $smallName $golangWeb }}
-          - name: PYTHON_API_ALN_URL
+          - name: PYTHON_API_URL
             {{- $pythonPort := pluck $env $.Values.python_api.port | first | default $.Values.python_api.port._default }}
-            {{- $pythonAlnPath := pluck $env $.Values.python_api.alignment_path | first | default $.Values.python_api.alignment_path._default }}
-            value: {{ printf "http://%s-%s:%s/%s" $.Chart.Name $pythonApi ( $pythonPort | toString ) $pythonAlnPath }}
+            value: {{ printf "http://%s-%s:%s/%s" $.Chart.Name $pythonApi ( $pythonPort | toString ) }}
+          - name: PYTHON_ALN_URI
+            value: {{ pluck $env $.Values.python_api.alignment_path | first | default $.Values.python_api.alignment_path._default | quote }}
           {{- end }}
           - name: PORT
             value: {{ $port | quote }}

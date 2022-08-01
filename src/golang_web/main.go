@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	alignmentUrl = os.Getenv("PYTHON_API_ALN_URL")
+	pythonApiUrl = os.Getenv("PYTHON_API_URL")
 	port         = os.Getenv("PORT")
+	alignmentUri = os.Getenv("PYTHON_ALN_URI")
 	templateFile = "templates/index.html"
 
 	decoder = schema.NewDecoder()
@@ -147,7 +148,7 @@ func (h *Handler) Index() {
 			h.ReturnError(500, err)
 			return
 		}
-		resp, err := MakePostWithStruct(context.TODO(), fmt.Sprintf("%s/generate_fig", alignmentUrl), alignment)
+		resp, err := MakePostWithStruct(context.TODO(), fmt.Sprintf("%s/%s", pythonApiUrl, alignmentUri), alignment)
 		if err != nil {
 			h.ReturnError(500, err)
 			return
