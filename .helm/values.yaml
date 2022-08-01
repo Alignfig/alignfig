@@ -19,7 +19,8 @@ golang_web:
     _default: []
   port:
     _default: 8090
-
+log_level:
+  _default: debug
 ingress:
   host:
     _default: alignfig.%s.alexmakh.ru

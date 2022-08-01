@@ -53,6 +53,8 @@ spec:
           {{- end }}
           - name: PORT
             value: {{ $port | quote }}
+          - name: LOG_LEVEL
+            value: {{ pluck $env $.Values.log_level | first | default $.Values.log_level._default | quote }}
         command:
 {{- range $comm := pluck $env $values.command | first | default $values.command._default }}
         - {{ $comm }}

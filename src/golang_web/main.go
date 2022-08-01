@@ -22,6 +22,7 @@ var (
 	port         = os.Getenv("PORT")
 	alignmentUri = os.Getenv("PYTHON_ALN_URI")
 	templateFile = "templates/index.html"
+	logLevel     = os.Getenv("LOG_LEVEL")
 
 	decoder = schema.NewDecoder()
 	encoder = schema.NewEncoder()
@@ -68,7 +69,7 @@ func (s *Server) Start(ctx context.Context) {
 }
 
 func main() {
-	SetLogLevel("info")
+	SetLogLevel(logLevel)
 	ctx := context.TODO()
 	server := NewServer()
 	server.Start(ctx)
