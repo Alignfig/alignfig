@@ -117,9 +117,14 @@ func (h *Handler) Redirect() {
 		h.ReturnError(500, err)
 		return
 	}
-	h.r.URL.RawQuery = query.Encode()
+	redirectUrl, err := url.Parse("http://127.0.0.1/")
+	if err != nil {
+		h.ReturnError(500, err)
+		return
+	}
+	redirectUrl.RawQuery = query.Encode()
 
-	http.Redirect(h.w, h.r, h.r.URL.String(), http.StatusFound)
+	http.Redirect(h.w, h.r, redirectUrl.String(), http.StatusFound)
 }
 
 func (h *Handler) InitialRequestLogger(logger hclog.Logger) {
