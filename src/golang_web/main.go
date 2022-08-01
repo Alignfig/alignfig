@@ -124,6 +124,7 @@ func (h *Handler) Redirect() {
 	}
 	redirectUrl.RawQuery = query.Encode()
 
+	h.logger.Debug(redirectUrl.String())
 	http.Redirect(h.w, h.r, redirectUrl.String(), http.StatusFound)
 }
 
