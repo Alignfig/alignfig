@@ -56,8 +56,8 @@ import:
     to: /golang_web
     before: setup
   - artifact: golang_builder
-    add: /app/index.html
-    to: /index.html
+    add: /app/templates
+    to: /templates
     before: setup
 shell:
   setup:
