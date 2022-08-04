@@ -64,7 +64,7 @@ func (s *Server) Close() {
 }
 
 func (s *Server) Start(ctx context.Context) {
-	if local == "" {
+	if local != "" {
 		redisClient = redis.NewClient(&redis.Options{
 			Addr:     "localhost:6379",
 			Password: "",
