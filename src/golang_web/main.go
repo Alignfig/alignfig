@@ -327,6 +327,11 @@ func MakePostWithStruct(ctx context.Context, url string, jsonStruct interface{})
 		return nil, err
 	}
 	hclog.L().With("Status", resp.Status, "Headers", resp.Header).Debug("")
+
+	if resp.StatusCode > 399 {
+		return nil, errors.New("python api returned error")
+	}
+
 	return resp, nil
 }
 

@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, json, Response
 from .plot import generate_figure_from_json
-from core.variables import result_image_json, result_error, encoding
+from core.variables import result_image_json, result_error, encoding, \
+    request_alignment_type, request_alignment_format
 from .log import log
 import traceback
 
@@ -14,7 +15,7 @@ def generate_fig():
     except json.JSONDecodeError as err:
         return handle_error(err)
 
-    log.debug(f'Data from request: "{data}"')
+    log.debug(f'Data from request: "{data[request_alignment_format]}, {data[request_alignment_type]}"')
 
     try:
         figure = generate_figure_from_json(data)
