@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -270,6 +271,11 @@ func (h *Handler) ParseForm() (JsonRequest, error) {
 		aln = buf.String()
 	} else {
 		aln = h.r.FormValue("alignment")
+	}
+
+	if aln == "" {
+		h.ReturnError(http.StatusInternalServerError, errors.New("no alignment provided"))
+		return JsonRequest{}, nil
 	}
 
 	h.logger.Debug("Generating request struct from form values")
