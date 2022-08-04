@@ -202,6 +202,7 @@ func (h *Handler) Index(ctx context.Context) {
 			val, err := h.GetFromRedis(ctx, key)
 			if err != nil {
 				h.ReturnError(http.StatusInternalServerError, err)
+				return
 			}
 			h.response.Image = val
 		}
