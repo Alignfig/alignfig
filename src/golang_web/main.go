@@ -255,8 +255,7 @@ func (h *Handler) ParseForm() (JsonRequest, error) {
 	h.logger.Debug("Parsing form")
 	err := h.r.ParseMultipartForm(2 << 21)
 	if err != nil {
-		h.ReturnError(http.StatusInternalServerError, err)
-		return JsonRequest{}, nil
+		return JsonRequest{}, err
 	}
 
 	h.logger.Debug("Getting alignment from form")
@@ -265,8 +264,7 @@ func (h *Handler) ParseForm() (JsonRequest, error) {
 		defer file.Close()
 		buf := bytes.NewBuffer(nil)
 		if _, err := io.Copy(buf, file); err != nil {
-			h.ReturnError(http.StatusInternalServerError, err)
-			return JsonRequest{}, nil
+			return JsonRequest{}, err
 		}
 		aln = buf.String()
 	} else {
@@ -274,8 +272,7 @@ func (h *Handler) ParseForm() (JsonRequest, error) {
 	}
 
 	if aln == "" {
-		h.ReturnError(http.StatusInternalServerError, errors.New("no alignment provided"))
-		return JsonRequest{}, nil
+		return JsonRequest{}, errors.New("no alignment provided")
 	}
 
 	h.logger.Debug("Generating request struct from form values")
