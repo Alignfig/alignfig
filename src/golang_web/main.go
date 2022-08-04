@@ -232,7 +232,10 @@ func (h *Handler) Index(ctx context.Context) {
 				h.ReturnError(http.StatusInternalServerError, err)
 				return
 			}
-
+			if h.response.Error != "" {
+				h.ReturnError(http.StatusInternalServerError, errors.New(h.response.Error))
+				return
+			}
 			err = h.StroreInRedis(ctx, h.response.ImageKey, h.response.Image)
 
 			if err != nil {

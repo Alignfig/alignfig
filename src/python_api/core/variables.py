@@ -3,6 +3,7 @@ protein = "Protein"
 encoding = "utf-8"
 
 result_image_json = "image"
+result_error = "error"
 
 request_image_format = "image_format"
 request_alignment_type = "alignment_type"
