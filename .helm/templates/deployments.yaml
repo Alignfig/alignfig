@@ -60,11 +60,11 @@ spec:
             value: {{ pluck $env $.Values.log_level | first | default $.Values.log_level._default | quote }}
         command:
 {{- range $comm := pluck $env $values.command | first | default $values.command._default }}
-        - {{ $comm }}
+        - {{ $comm | quote }}
 {{- end }}
         args:
 {{- range $arg := pluck $env $values.args | first | default $values.args._default }}
-        - {{ $arg }}
+        - {{ $arg | quote }}
 {{- end }}
         ports:
           - containerPort: {{ $port }}
