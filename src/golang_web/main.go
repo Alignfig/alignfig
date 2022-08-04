@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -11,8 +12,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/schema"
 	"github.com/hashicorp/go-hclog"
 )
@@ -23,9 +26,13 @@ var (
 	alignmentUri = os.Getenv("PYTHON_ALN_URI")
 	templateFile = "templates/index.html"
 	logLevel     = os.Getenv("LOG_LEVEL")
+	local        = os.Getenv("LOCAL")
+	redisAddr    = os.Getenv("REDIS_ADDR")
 
 	decoder = schema.NewDecoder()
 	encoder = schema.NewEncoder()
+
+	redisClient *redis.Client
 )
 
 type Server struct {
@@ -57,10 +64,24 @@ func (s *Server) Close() {
 }
 
 func (s *Server) Start(ctx context.Context) {
+	if local == "" {
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "",
+			DB:       3,
+		})
+	} else {
+		redisClient = redis.NewFailoverClient(&redis.FailoverOptions{
+			MasterName:    "mymaster",
+			SentinelAddrs: []string{redisAddr},
+			DB:            3,
+		})
+
+	}
 	s.template = template.Must(template.ParseFiles(templateFile))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		handler := NewHandler(s.template, w, r, s.logger)
-		handler.Index()
+		handler := NewHandler(s.template, w, r, s.logger, redisClient)
+		handler.Index(ctx)
 	})
 
 	s.logger.Debug("Starting web server")
@@ -77,17 +98,16 @@ func main() {
 }
 
 type JsonRequest struct {
-	Alignment    string `json:"alignment"`
-	Format       string `json:"alignment_format"`
-	Type         string `json:"alignment_type"`
-	RefreshToken string `json:"refresh_token"`
+	Alignment string `json:"alignment"`
+	Format    string `json:"alignment_format"`
+	Type      string `json:"alignment_type"`
 }
 
 type JsonResponse struct {
-	Success      bool   `schema:"ok"`
-	Image        string `json:"image" schema:"image"`
-	Error        string `json:"error" schema:"error"`
-	RefreshToken string `json:"refresh_token" schema:"refresh_token"`
+	Success  bool   `schema:"ok"`
+	Image    string `json:"image" schema:"-"`
+	Error    string `json:"error" schema:"error,omitempty"`
+	ImageKey string `json:"image_key" schema:"image_key,omitempty"`
 }
 
 type Handler struct {
@@ -96,14 +116,16 @@ type Handler struct {
 	r        *http.Request
 	tmpl     *template.Template
 	logger   hclog.Logger
+	redis    *redis.Client
 }
 
-func NewHandler(tmpl *template.Template, w http.ResponseWriter, r *http.Request, logger hclog.Logger) *Handler {
+func NewHandler(tmpl *template.Template, w http.ResponseWriter, r *http.Request, logger hclog.Logger, redisClient *redis.Client) *Handler {
 	h := &Handler{
 		tmpl:   tmpl,
 		w:      w,
 		r:      r,
 		logger: logger.With("uri", r.RequestURI),
+		redis:  redisClient,
 	}
 	h.logger.Info(fmt.Sprintf("Incoming %s request", h.r.Method))
 	return h
@@ -114,17 +136,17 @@ func (h *Handler) Redirect() {
 	err := encoder.Encode(h.response, query)
 
 	if err != nil {
-		h.ReturnError(500, err)
+		h.ReturnError(http.StatusInternalServerError, err)
 		return
 	}
-	redirectUrl, err := url.Parse("http://127.0.0.1/")
+	redirectUrl := h.r.URL
 	if err != nil {
-		h.ReturnError(500, err)
+		h.ReturnError(http.StatusInternalServerError, err)
 		return
 	}
 	redirectUrl.RawQuery = query.Encode()
 
-	h.logger.Debug(redirectUrl.String())
+	// h.logger.Debug(redirectUrl.String())
 	http.Redirect(h.w, h.r, redirectUrl.String(), http.StatusFound)
 }
 
@@ -133,45 +155,80 @@ func (h *Handler) InitialRequestLogger(logger hclog.Logger) {
 }
 
 func (h *Handler) ReturnError(status int, err error) {
+	_, filename, line, _ := runtime.Caller(1)
 	errorString := err.Error()
-	h.logger.Error(errorString)
+	h.logger.With("caller", fmt.Sprintf("%s:%d", filename, line)).Error(errorString)
 	h.response.Error = template.HTMLEscapeString(errorString)
 	h.Redirect()
 }
 
-func (h *Handler) Index() {
+func (h *Handler) StroreInRedis(ctx context.Context, key, value string) error {
+	if getVal, err := h.GetFromRedis(ctx, key); err == nil && getVal != "" {
+		return nil
+	}
+	h.logger.With("key", key).Debug("Storing b64 image in redis")
+	return h.redis.Set(ctx, key, value, 60*time.Minute).Err()
+}
+
+func (h *Handler) GetFromRedis(ctx context.Context, key string) (string, error) {
+	value, err := h.redis.Get(ctx, key).Result()
+	switch err {
+	case redis.Nil:
+		return "", nil
+	case nil:
+		return value, nil
+	default:
+		return "", err
+	}
+}
+func (h *Handler) Index(ctx context.Context) {
 	switch h.r.Method {
 	case http.MethodGet:
 		err := decoder.Decode(&h.response, h.r.URL.Query())
 		if err != nil {
-			h.ReturnError(500, err)
+			h.ReturnError(http.StatusInternalServerError, err)
 			return
 		}
+		if key := h.response.ImageKey; key != "" {
+			val, err := h.GetFromRedis(ctx, key)
+			if err != nil {
+				h.ReturnError(http.StatusInternalServerError, err)
+			}
+			h.response.Image = val
+		}
+
 		h.tmpl.Execute(h.w, h.response)
 		return
 	case http.MethodPost:
-		alignment, err := h.ParseForm()
+		formReq, err := h.ParseForm()
 		if err != nil {
-			h.ReturnError(500, err)
+			h.ReturnError(http.StatusInternalServerError, err)
 			return
 		}
-		resp, err := MakePostWithStruct(context.TODO(), fmt.Sprintf("%s/%s", pythonApiUrl, alignmentUri), alignment)
+		resp, err := MakePostWithStruct(context.TODO(), fmt.Sprintf("%s/%s", pythonApiUrl, alignmentUri), formReq)
 		if err != nil {
-			h.ReturnError(500, err)
+			h.ReturnError(http.StatusInternalServerError, err)
 			return
 		}
 
 		defer resp.Body.Close()
 		err = json.NewDecoder(resp.Body).Decode(&h.response)
 		if err != nil {
-			h.ReturnError(500, err)
+			h.ReturnError(http.StatusInternalServerError, err)
 			return
 		}
 
 		h.logger.Debug("Returning result from api")
 
 		h.response.Success = true
+		h.response.ImageKey = CheckSumString(formReq.Alignment)
 
+		err = h.StroreInRedis(ctx, h.response.ImageKey, h.response.Image)
+
+		if err != nil {
+			h.ReturnError(http.StatusInternalServerError, err)
+			return
+		}
 		h.Redirect()
 	}
 }
@@ -180,7 +237,7 @@ func (h *Handler) ParseForm() (JsonRequest, error) {
 	h.logger.Debug("Parsing form")
 	err := h.r.ParseMultipartForm(2 << 21)
 	if err != nil {
-		h.ReturnError(500, err)
+		h.ReturnError(http.StatusInternalServerError, err)
 		return JsonRequest{}, nil
 	}
 
@@ -190,7 +247,7 @@ func (h *Handler) ParseForm() (JsonRequest, error) {
 		defer file.Close()
 		buf := bytes.NewBuffer(nil)
 		if _, err := io.Copy(buf, file); err != nil {
-			h.ReturnError(500, err)
+			h.ReturnError(http.StatusInternalServerError, err)
 			return JsonRequest{}, nil
 		}
 		aln = buf.String()
@@ -202,23 +259,24 @@ func (h *Handler) ParseForm() (JsonRequest, error) {
 	aln = base64.StdEncoding.EncodeToString([]byte(template.HTMLEscapeString(aln)))
 	alnFormat := template.HTMLEscapeString(h.r.FormValue("format"))
 	alnType := template.HTMLEscapeString(h.r.FormValue("type"))
+
 	return JsonRequest{
 		Alignment: aln,
 		Format:    alnFormat,
 		Type:      alnType,
 	}, nil
 }
+
 func SetLogLevel(logLevel string) {
 	options := hclog.LoggerOptions{
 		Level:             hclog.LevelFromString(logLevel),
 		JSONFormat:        true,
-		IncludeLocation:   true,
+		IncludeLocation:   false,
 		DisableTime:       false,
 		Color:             hclog.AutoColor,
 		IndependentLevels: false,
 	}
 	hclog.SetDefault(hclog.New(&options))
-
 }
 
 func MakePostWithStruct(ctx context.Context, url string, jsonStruct interface{}) (*http.Response, error) {
@@ -246,4 +304,8 @@ func MakePostWithStruct(ctx context.Context, url string, jsonStruct interface{})
 	}
 	hclog.L().With("Status", resp.Status, "Headers", resp.Header).Debug("")
 	return resp, nil
+}
+
+func CheckSumString(str string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(str)))
 }

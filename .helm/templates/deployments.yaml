@@ -39,6 +39,7 @@ spec:
     spec:
       imagePullSecrets:
       - name: registrysecret
+      - name: github-regcred
       containers:
       - name: {{ $name }}
         image: {{ index $.Values.werf.image $underlineName }}
@@ -50,6 +51,8 @@ spec:
             value: {{ printf "http://%s-%s:%s" $.Chart.Name $pythonApi ( $pythonPort | toString ) }}
           - name: PYTHON_ALN_URI
             value: {{ pluck $env $.Values.python_api.alignment_path | first | default $.Values.python_api.alignment_path._default | quote }}
+          - name: REDIS_ADDR
+            value: {{ pluck $env $.Values.redis_addr | first | default $.Values.redis_addr._default | quote }}
           {{- end }}
           - name: PORT
             value: {{ $port | quote }}

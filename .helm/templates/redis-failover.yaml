@@ -1,0 +1,68 @@
+---
+# Source: redis/templates/redis.yaml
+apiVersion: databases.spotahome.com/v1
+kind: RedisFailover
+metadata:
+  name: redis
+  labels:
+    prometheus.deckhouse.io/target: redis
+spec:
+  sentinel:
+    imagePullSecrets:
+      - name: registrysecret
+    # affinity:
+    #   podAntiAffinity:
+    #     preferredDuringSchedulingIgnoredDuringExecution:
+    #       - podAffinityTerm:
+    #           labelSelector:
+    #             matchLabels:
+    #               app.kubernetes.io/name: redis
+    #               app.kubernetes.io/component: sentinel
+    #           topologyKey: kubernetes.io/hostname
+            # weight: 100
+    replicas: 1
+    resources:
+      requests:
+        cpu: 25m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
+  labelWhitelist:
+    - prometheus.deckhouse.io/target
+  redis:
+    # affinity:
+    #   podAntiAffinity:
+    #     preferredDuringSchedulingIgnoredDuringExecution:
+    #       - podAffinityTerm:
+    #           labelSelector:
+    #             matchLabels:
+    #               app.kubernetes.io/name: redis
+    #               app.kubernetes.io/component: redis
+    #           topologyKey: kubernetes.io/hostname
+    #         weight: 100
+    imagePullSecrets:
+      - name: registrysecret
+      - name: github-regcred
+    replicas: 1
+    image: {{ .Values.werf.image.redis }}
+    # resources:
+    #   requests:
+    #     cpu: 1
+    #     memory: 768Mi
+    #   limits:
+    #     memory: 768Mi
+    customConfig:
+      - maxmemory 600mb
+      - maxmemory-policy volatile-ttl
+      - protected-mode no
+      - loglevel notice
+      - timeout 60
+      - tcp-keepalive 60
+    exporter:
+      enabled: true
+      image: {{ .Values.werf.image.redis_exporter }}
+    securityContext:
+      fsGroup: 999
+      runAsGroup: 999
+      runAsUser: 999
+    storage:
