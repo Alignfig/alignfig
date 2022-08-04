@@ -107,7 +107,7 @@ type JsonResponse struct {
 	Success  bool   `schema:"ok"`
 	Image    string `json:"image" schema:"-"`
 	Error    string `json:"error" schema:"error,omitempty"`
-	ImageKey string `json:"image_key" schema:"image_key,omitempty"`
+	ImageKey string `schema:"image_key,omitempty"`
 }
 
 type Handler struct {
@@ -162,25 +162,33 @@ func (h *Handler) ReturnError(status int, err error) {
 	h.Redirect()
 }
 
-func (h *Handler) StroreInRedis(ctx context.Context, key, value string) error {
-	if getVal, err := h.GetFromRedis(ctx, key); err == nil && getVal != "" {
-		return nil
+func (h *Handler) CheckKeyInRedis(ctx context.Context, key string) error {
+	getVal, err := h.GetFromRedis(ctx, key)
+	if err == nil {
+		switch getVal {
+		case "":
+			return fmt.Errorf("error in redis with key: no value for key %s", key)
+		default:
+			h.logger.With("key", key).Debug("alignment image already in redis")
+			return nil
+		}
 	}
-	h.logger.With("key", key).Debug("Storing b64 image in redis")
-	return h.redis.Set(ctx, key, value, 60*time.Minute).Err()
+	return err
+}
+
+func (h *Handler) StroreInRedis(ctx context.Context, key, value string) error {
+	check := h.CheckKeyInRedis(ctx, key)
+	if check == redis.Nil {
+		h.logger.With("key", key).Debug("Storing b64 image in redis")
+		return h.redis.Set(ctx, key, value, 60*time.Minute).Err()
+	}
+	return check
 }
 
 func (h *Handler) GetFromRedis(ctx context.Context, key string) (string, error) {
-	value, err := h.redis.Get(ctx, key).Result()
-	switch err {
-	case redis.Nil:
-		return "", nil
-	case nil:
-		return value, nil
-	default:
-		return "", err
-	}
+	return h.redis.Get(ctx, key).Result()
 }
+
 func (h *Handler) Index(ctx context.Context) {
 	switch h.r.Method {
 	case http.MethodGet:
@@ -205,15 +213,31 @@ func (h *Handler) Index(ctx context.Context) {
 			h.ReturnError(http.StatusInternalServerError, err)
 			return
 		}
-		resp, err := MakePostWithStruct(context.TODO(), fmt.Sprintf("%s/%s", pythonApiUrl, alignmentUri), formReq)
-		if err != nil {
-			h.ReturnError(http.StatusInternalServerError, err)
-			return
-		}
 
-		defer resp.Body.Close()
-		err = json.NewDecoder(resp.Body).Decode(&h.response)
-		if err != nil {
+		h.response.ImageKey = CheckSumString(formReq.Alignment)
+		err = h.CheckKeyInRedis(ctx, h.response.ImageKey)
+
+		if err == redis.Nil {
+			resp, err := MakePostWithStruct(context.TODO(), fmt.Sprintf("%s/%s", pythonApiUrl, alignmentUri), formReq)
+			if err != nil {
+				h.ReturnError(http.StatusInternalServerError, err)
+				return
+			}
+
+			defer resp.Body.Close()
+			err = json.NewDecoder(resp.Body).Decode(&h.response)
+			if err != nil {
+				h.ReturnError(http.StatusInternalServerError, err)
+				return
+			}
+
+			err = h.StroreInRedis(ctx, h.response.ImageKey, h.response.Image)
+
+			if err != nil {
+				h.ReturnError(http.StatusInternalServerError, err)
+				return
+			}
+		} else if err != nil {
 			h.ReturnError(http.StatusInternalServerError, err)
 			return
 		}
@@ -221,14 +245,7 @@ func (h *Handler) Index(ctx context.Context) {
 		h.logger.Debug("Returning result from api")
 
 		h.response.Success = true
-		h.response.ImageKey = CheckSumString(formReq.Alignment)
 
-		err = h.StroreInRedis(ctx, h.response.ImageKey, h.response.Image)
-
-		if err != nil {
-			h.ReturnError(http.StatusInternalServerError, err)
-			return
-		}
 		h.Redirect()
 	}
 }
