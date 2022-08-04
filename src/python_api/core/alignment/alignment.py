@@ -1,5 +1,5 @@
 from biotite.sequence.align import Alignment
-from biotite.sequence import Sequence, LetterAlphabet, AlphabetError
+from biotite.sequence import Sequence, LetterAlphabet, AlphabetError, Alphabet
 from Bio import AlignIO
 from Bio.Align import MultipleSeqAlignment
 
@@ -7,7 +7,7 @@ from core.variables import encoding
 from core.api.log import log
 
 import numpy as np
-from typing import List, Any, Tuple
+from typing import List, Any, Tuple, Iterator
 
 class AlignedNucleotideSequence(Sequence):
     alphabet_unamb = LetterAlphabet(["A","C","G","T","-"])
@@ -24,7 +24,7 @@ class AlignedNucleotideSequence(Sequence):
             _ = self._alphabet.encode_multiple(sequence)
         super().__init__(sequence)
 
-    def get_alphabet(self):
+    def get_alphabet(self) -> Alphabet:
         return self._alphabet
 
 
@@ -33,7 +33,7 @@ class AlignedProteinSequence(Sequence):
                                "M","N","P","Q","R","S","T","V","W","Y",
                                "B","Z","X","*","-"])
 
-    def get_alphabet(self):
+    def get_alphabet(self) -> Alphabet:
         return AlignedProteinSequence.alphabet
 
 
@@ -50,19 +50,19 @@ class AlignmentForPlot:
         self.alignment = Alignment(sequences=aln_list, trace=trace)
         self.headers = headers
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self._alignment.__repr__()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._alignment.__str__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._alignment)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator:
         return iter(self._alignment.sequences)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         return self._alignment.sequences[index]
 
     @property
@@ -70,8 +70,8 @@ class AlignmentForPlot:
         return self._alignment
 
     @alignment.setter
-    def alignment(self, value):
-        if not isinstance(value,  Alignment):
+    def alignment(self, value: Alignment):
+        if not isinstance(value, Alignment):
             raise ValueError
         self._alignment = value
 
@@ -81,7 +81,7 @@ class AlignmentForPlot:
 
     @headers.setter
     def headers(self, value: Any):
-        if not isinstance(value,  list):
+        if not isinstance(value, list):
             raise ValueError
         self._headers = value
 

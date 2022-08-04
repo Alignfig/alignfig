@@ -7,6 +7,10 @@ python_api:
     - --bind
     - 0.0.0.0:$(PORT)
     - manage:app
+    - --timeout
+    - "120"
+    - --workers
+    - "2"
   port:
     _default: 5000
   alignment_path:
