@@ -101,20 +101,10 @@ class AlignmentForPlot:
         aln_headers_list: List[str] = []
 
         log.debug('Reading alignment')
-        # with (t := tempfile.NamedTemporaryFile(
-        #     mode='r+',
-        #     encoding=encoding,
-        #     newline='\n',
-        #     delete=False,
-        #     )) as t:
-        #     tmp = t.name
-        #     t.write(aln)
-        #     # tmp.seek(0)
-        # print(tmp)
         aln_parser: MultipleSeqAlignment = AlignIO.read(aln, format=alignment_type)
 
         log.debug('Generating sequence list')
         for seq in aln_parser:
             aln_str_list.append(constructor(seq.seq))
             aln_headers_list.append(seq.id)
-        return aln_str_list[:10], aln_headers_list[:10]
+        return aln_str_list, aln_headers_list
