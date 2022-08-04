@@ -216,8 +216,8 @@ func (h *Handler) Index(ctx context.Context) {
 			return
 		}
 
-		h.response.ImageKey = CheckSumString(formReq.Alignment)
-		err = h.CheckKeyInRedis(ctx, h.response.ImageKey)
+		ImageKey := CheckSumString(formReq.Alignment)
+		err = h.CheckKeyInRedis(ctx, ImageKey)
 
 		if err == redis.Nil {
 			resp, err := MakePostWithStruct(context.TODO(), fmt.Sprintf("%s/%s", pythonApiUrl, alignmentUri), formReq)
@@ -236,7 +236,7 @@ func (h *Handler) Index(ctx context.Context) {
 				h.ReturnError(http.StatusInternalServerError, errors.New(h.response.Error))
 				return
 			}
-			err = h.StroreInRedis(ctx, h.response.ImageKey, h.response.Image)
+			err = h.StroreInRedis(ctx, ImageKey, h.response.Image)
 
 			if err != nil {
 				h.ReturnError(http.StatusInternalServerError, err)
@@ -250,6 +250,7 @@ func (h *Handler) Index(ctx context.Context) {
 		h.logger.Debug("Returning result from api")
 
 		h.response.Success = true
+		h.response.ImageKey = ImageKey
 
 		h.Redirect()
 	}
