@@ -10,12 +10,79 @@
         }
     </style>
 </head>
+
 <body>
-{{if .Success}}
+{{ if .Success }}
     <h1>Thanks for using our service!</h1>
-    <img class="responsive_image" src="data:image/png;base64,{{.Image}}" alt="Blank"/>
+    <img id="aln_image" class="responsive_image" alt="Waiting for image..."/>
     <p><a href="/">Go back</a></p>
-{{else}}
+<script>
+
+const RETRYABLE_ERROR_CODES = [
+    'Error decoding query',
+    'No such key in redis',
+    'Error getting image',
+    'SERVICE_UNAVAILABLE',
+    'ECONNRESET',
+    'SERVER_ERROR',
+];
+
+const isRetryableError = error =>
+        (error.error_code && RETRYABLE_ERROR_CODES.includes(error.error_code));
+
+const waitFor = milliseconds =>
+        new Promise(resolve => setTimeout(resolve, milliseconds));
+
+const waitingTimeInMs = retryCount => {
+        const maxExponentialCount = 128;
+        const exponentialCount = 2 ** retryCount;
+        return (Math.min(exponentialCount, maxExponentialCount)) * 1000
+};
+
+const retryRequest = (clientRequest, maxRetries = 4) => {
+    const retryFn = async retryCount => {
+        try {
+            if (retryCount > 0) {
+                const timeToWait = waitingTimeInMs(retryCount);
+                console.log('API will be called after:', timeToWait)
+                await waitFor(timeToWait);
+            }
+            return await clientRequest();
+        } catch (err) {
+            console.log("Error Received :", err);
+            if (isRetryableError(err) && retryCount < maxRetries) {
+                return retryFn(retryCount + 1);
+            } else {
+                throw err;
+            }
+        }
+    };
+
+    return retryFn(0);
+};
+
+const callPythonApi = async () => {
+    const response = await fetch('{{ .FetchURL }}');
+    const myJson = await response.json();
+
+    if (myJson["error_code"] != "") {
+        throw myJson;
+    }
+
+    return Promise.resolve(myJson);
+}
+
+retryRequest(async () => callPythonApi())
+.then((data) => {
+    console.log('retryRequest response :', data);
+    image64 = "data:image/png;base64," + data["image"];
+    document.getElementById('aln_image').src = image64;
+})
+.catch((err) => document.getElementById('aln_image').alt = "Error getting image, try to update page");
+
+</script>
+
+{{ else }}
     <h1>Contact</h1>
     <form enctype="multipart/form-data" method="POST" url="/generate_fig">
         <label>Format: <a target="_blank" href="https://biopython.org/docs/1.76/api/Bio.AlignIO.html#file-formats">#From Biopython doc</a></label><br />
@@ -50,8 +117,8 @@
         <p><input type="submit"></p>
     </form>
     <p><a href="/">Clear form</a></p>
-{{end}}
+{{ end }}
 
-{{if ne .Error ""}}
-<h2>Error: "{{.Error}}"</h2>
-{{end}}
+{{ if ne .Error "" }}
+<h2>Error: "{{ .Error }}"</h2>
+{{ end }}

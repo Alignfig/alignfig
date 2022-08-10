@@ -16,16 +16,16 @@ import (
 )
 
 var (
-	pythonApiUrl = os.Getenv("PYTHON_API_URL")
-	port         = os.Getenv("PORT")
-	alignmentUri = os.Getenv("PYTHON_ALN_URI")
-	templateFile = "templates/index.html"
-	logLevel     = os.Getenv("LOG_LEVEL")
-	local        = os.Getenv("LOCAL")
-	redisAddr    = os.Getenv("REDIS_ADDR")
-
-	decoder = schema.NewDecoder()
-	encoder = schema.NewEncoder()
+	pythonApiUrl  = os.Getenv("PYTHON_API_URL")
+	port          = os.Getenv("PORT")
+	alignmentUri  = os.Getenv("PYTHON_ALN_URI")
+	templateFile  = "templates/index.html"
+	logLevel      = os.Getenv("LOG_LEVEL")
+	local         = os.Getenv("LOCAL")
+	redisAddr     = os.Getenv("REDIS_ADDR")
+	fetchImageUrl = "/fetch-image"
+	decoder       = schema.NewDecoder()
+	encoder       = schema.NewEncoder()
 
 	redisClient *redis.Client
 )
@@ -42,7 +42,7 @@ func SetLogLevel(logLevel string) {
 	options := hclog.LoggerOptions{
 		Level:             hclog.LevelFromString(logLevel),
 		JSONFormat:        true,
-		IncludeLocation:   false,
+		IncludeLocation:   true,
 		DisableTime:       false,
 		Color:             hclog.AutoColor,
 		IndependentLevels: false,

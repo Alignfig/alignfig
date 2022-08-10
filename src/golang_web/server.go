@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -54,10 +55,41 @@ func (s *Server) Start(ctx context.Context) {
 		})
 
 	}
+	redisStruct := NewRedisClient(redisClient, s.logger)
+
 	s.template = template.Must(template.ParseFiles(templateFile))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		handler := NewHandler(s.template, w, r, s.logger, redisClient)
+		handler := NewHandler(s.template, w, r, s.logger, redisStruct)
 		handler.Index(ctx)
+	})
+
+	http.HandleFunc(fetchImageUrl, func(w http.ResponseWriter, r *http.Request) {
+		var response JsonResponse
+
+		GenerateError := func(err error, errString string) {
+			s.logger.Error(err.Error())
+			response.Error = "Error decoding query"
+			json.NewEncoder(w).Encode(response)
+		}
+
+		err := decoder.Decode(&response, r.URL.Query())
+		if err != nil {
+			GenerateError(err, "Error decoding query")
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		result, err := redisStruct.GetFromRedis(ctx, response.ImageKey)
+		if err == redis.Nil {
+			GenerateError(err, "No such key in redis")
+			return
+		} else if err != nil {
+			s.logger.Error(err.Error())
+			GenerateError(err, "Error getting image")
+			return
+		}
+		response.Image = result
+		json.NewEncoder(w).Encode(response)
 	})
 
 	s.logger.Debug("Starting web server")
