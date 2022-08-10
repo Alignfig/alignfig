@@ -64,10 +64,13 @@ func (s *Server) Start(ctx context.Context) {
 	})
 
 	http.HandleFunc(fetchImageUrl, func(w http.ResponseWriter, r *http.Request) {
+		logger := s.logger.With("uri", r.RequestURI)
+		logger.Info(fmt.Sprintf("Incoming %s request", r.Method))
+
 		var response JsonResponse
 
 		GenerateError := func(err error, errString string) {
-			s.logger.Error(err.Error())
+			logger.Error(err.Error())
 			response.Error = "Error decoding query"
 			json.NewEncoder(w).Encode(response)
 		}

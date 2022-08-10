@@ -65,6 +65,7 @@ const callPythonApi = async () => {
     const response = await fetch('{{ .FetchURL }}');
     const myJson = await response.json();
 
+    console.log("Incoming data :", myJson)
     if (myJson["error_code"] != "") {
         throw myJson;
     }
