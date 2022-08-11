@@ -108,6 +108,24 @@ retryRequest(async () => callPythonApi())
             <option value="Nucleotide">Nucleotide</option>
         </select><br />
 
+        <label>Line positions:</label><br />
+        <select id="show_line_position" name="show_line_position">
+            <option value="true" selected>Numbers under alignment</option>
+            <option value="false">No</option>
+        </select><br />
+
+        <label>Color symbols:</label><br />
+        <select id="color_symbols" name="color_symbols">
+            <option value="false" selected>Color boxes arund symbols</option>
+            <option value="true">Color symbols</option>
+        </select><br />
+
+        <label>Similarity:</label><br />
+        <select id="show_similarity" name="show_similarity">
+            <option value="true" selected>Count similarity</option>
+            <option value="false">No</option>
+        </select><br />
+
         <label>Alignment:</label><br />
         <textarea id="alignment" name="alignment"></textarea><br />
 

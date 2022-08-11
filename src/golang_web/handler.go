@@ -12,15 +12,19 @@ import (
 	"net/http"
 	"net/url"
 	"runtime"
+	"strconv"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/hashicorp/go-hclog"
 )
 
 type JsonRequest struct {
-	Alignment string `json:"alignment"`
-	Format    string `json:"alignment_format"`
-	Type      string `json:"alignment_type"`
+	Alignment    string `json:"alignment"`
+	Format       string `json:"alignment_format"`
+	Type         string `json:"alignment_type"`
+	Similarity   bool   `json:"show_similarity"`
+	ColorSymbols bool   `json:"color_symbols"`
+	LinePos      bool   `json:"show_line_position"`
 }
 
 type JsonResponse struct {
@@ -152,10 +156,28 @@ func (h *Handler) ParseForm() (JsonRequest, error) {
 	alnFormat := template.HTMLEscapeString(h.r.FormValue("alignment_format"))
 	alnType := template.HTMLEscapeString(h.r.FormValue("alignment_type"))
 
+	similarity, err := strconv.ParseBool(template.HTMLEscapeString(h.r.FormValue("show_similarity")))
+	if err != nil {
+		return JsonRequest{}, err
+	}
+
+	colorSymbols, err := strconv.ParseBool(template.HTMLEscapeString(h.r.FormValue("color_symbols")))
+	if err != nil {
+		return JsonRequest{}, err
+	}
+
+	linePos, err := strconv.ParseBool(template.HTMLEscapeString(h.r.FormValue("show_line_position")))
+	if err != nil {
+		return JsonRequest{}, err
+	}
+
 	return JsonRequest{
-		Alignment: aln,
-		Format:    alnFormat,
-		Type:      alnType,
+		Alignment:    aln,
+		Format:       alnFormat,
+		Type:         alnType,
+		Similarity:   similarity,
+		ColorSymbols: colorSymbols,
+		LinePos:      linePos,
 	}, nil
 }
 
