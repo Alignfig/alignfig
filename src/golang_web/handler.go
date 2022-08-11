@@ -94,7 +94,6 @@ func (h *Handler) Index(ctx context.Context) {
 		url := h.r.URL
 		url.Path = fetchImageUrl
 		h.response.FetchURL = url.String()
-		fmt.Print(url)
 		h.tmpl.Execute(h.w, h.response)
 		return
 	case http.MethodPost:
@@ -104,7 +103,8 @@ func (h *Handler) Index(ctx context.Context) {
 			return
 		}
 
-		imageKey := CheckSumString(formReq.Alignment)
+		checkSum := formReq.Alignment + formReq.Format + formReq.Type + strconv.FormatBool(formReq.ColorSymbols) + strconv.FormatBool(formReq.LinePos) + strconv.FormatBool(formReq.Similarity)
+		imageKey := CheckSumString(checkSum)
 		err = h.redis.CheckKeyInRedis(ctx, imageKey)
 
 		if err == redis.Nil {
@@ -132,7 +132,7 @@ func (h *Handler) ParseForm() (JsonRequest, error) {
 
 	h.logger.Debug("Getting alignment from form")
 	var aln string
-	if file, _, err := h.r.FormFile("uploadfile"); err == nil {
+	if file, _, err := h.r.FormFile("alignment_file"); err == nil {
 		defer file.Close()
 		buf := bytes.NewBuffer(nil)
 		if _, err := io.Copy(buf, file); err != nil {
@@ -149,8 +149,8 @@ func (h *Handler) ParseForm() (JsonRequest, error) {
 
 	h.logger.Debug("Generating request struct from form values")
 	aln = base64.StdEncoding.EncodeToString([]byte(template.HTMLEscapeString(aln)))
-	alnFormat := template.HTMLEscapeString(h.r.FormValue("format"))
-	alnType := template.HTMLEscapeString(h.r.FormValue("type"))
+	alnFormat := template.HTMLEscapeString(h.r.FormValue("alignment_format"))
+	alnType := template.HTMLEscapeString(h.r.FormValue("alignment_type"))
 
 	return JsonRequest{
 		Alignment: aln,

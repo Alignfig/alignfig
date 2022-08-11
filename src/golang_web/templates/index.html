@@ -87,7 +87,7 @@ retryRequest(async () => callPythonApi())
     <h1>Contact</h1>
     <form enctype="multipart/form-data" method="POST" url="/generate_fig">
         <label>Format: <a target="_blank" href="https://biopython.org/docs/1.76/api/Bio.AlignIO.html#file-formats">#From Biopython doc</a></label><br />
-        <select id="format" name="format">
+        <select id="alignment_format" name="alignment_format">
             <option value="clustal" selected>Clustal</option>
             <option value="emboss">Emboss</option>
             <option value="fasta">Fasta</option>
@@ -103,16 +103,16 @@ retryRequest(async () => callPythonApi())
           </select><br />
 
         <label>Type:</label><br />
-        <select id="type" name="type">
+        <select id="alignment_type" name="alignment_type">
             <option value="Protein" selected>Protein</option>
             <option value="Nucleotide">Nucleotide</option>
         </select><br />
 
         <label>Alignment:</label><br />
-        <textarea name="alignment"></textarea><br />
+        <textarea id="alignment" name="alignment"></textarea><br />
 
         <label>Alignment file:</label><br />
-        <input type="file" name="uploadfile" /><br />
+        <input type="file" id="alignment_file" name="alignment_file" /><br />
 
 
         <p><input type="submit"></p>
