@@ -65,6 +65,3 @@ import:
     add: /app/templates
     to: /templates
     before: setup
-shell:
-  setup:
-  - chmod +x /golang_web
