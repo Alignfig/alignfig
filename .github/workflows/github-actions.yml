@@ -12,7 +12,6 @@ jobs:
       - name: Converge
         uses: werf/actions/converge@v1.2
         with:
-          kube-config-base64-data: ${{ secrets.KUBECONFIG_BASE64_DATA }}
           env: production
         env:
           WERF_SECRET_KEY: ${{ secrets.WERF_SECRET_KEY }}
