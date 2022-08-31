@@ -25,6 +25,7 @@ type JsonRequest struct {
 	Similarity   bool   `json:"show_similarity"`
 	ColorSymbols bool   `json:"color_symbols"`
 	LinePos      bool   `json:"show_line_position"`
+	ImageExt     string `json:"image_format"`
 }
 
 type JsonResponse struct {
@@ -33,6 +34,7 @@ type JsonResponse struct {
 	Error    string `json:"error_code" schema:"error_code,omitempty"`
 	ImageKey string `json:"image_key" schema:"image_key,omitempty"`
 	FetchURL string `json:"-" schema:"-"`
+	ImageExt string `json:"image_format" schema:"image_format"`
 }
 
 type Handler struct {
@@ -107,7 +109,7 @@ func (h *Handler) Index(ctx context.Context) {
 			return
 		}
 
-		checkSum := formReq.Alignment + formReq.Format + formReq.Type + strconv.FormatBool(formReq.ColorSymbols) + strconv.FormatBool(formReq.LinePos) + strconv.FormatBool(formReq.Similarity)
+		checkSum := formReq.Alignment + formReq.Format + formReq.Type + strconv.FormatBool(formReq.ColorSymbols) + strconv.FormatBool(formReq.LinePos) + strconv.FormatBool(formReq.Similarity) + formReq.ImageExt
 		imageKey := CheckSumString(checkSum)
 		err = h.redis.CheckKeyInRedis(ctx, imageKey)
 
@@ -122,6 +124,7 @@ func (h *Handler) Index(ctx context.Context) {
 
 		h.response.Success = true
 		h.response.ImageKey = imageKey
+		h.response.ImageExt = formReq.ImageExt
 
 		h.Redirect()
 	}
@@ -155,6 +158,7 @@ func (h *Handler) ParseForm() (JsonRequest, error) {
 	aln = base64.StdEncoding.EncodeToString([]byte(template.HTMLEscapeString(aln)))
 	alnFormat := template.HTMLEscapeString(h.r.FormValue("alignment_format"))
 	alnType := template.HTMLEscapeString(h.r.FormValue("alignment_type"))
+	imgExt := template.HTMLEscapeString(h.r.FormValue("image_format"))
 
 	similarity, err := strconv.ParseBool(template.HTMLEscapeString(h.r.FormValue("show_similarity")))
 	if err != nil {
@@ -178,6 +182,7 @@ func (h *Handler) ParseForm() (JsonRequest, error) {
 		Similarity:   similarity,
 		ColorSymbols: colorSymbols,
 		LinePos:      linePos,
+		ImageExt:     imgExt,
 	}, nil
 }
 

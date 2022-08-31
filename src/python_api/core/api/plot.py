@@ -3,7 +3,7 @@ from core.alignment.alignment import AlignmentForPlot, \
     AlignedNucleotideSequence, AlignedProteinSequence
 from core.variables import nucleotide, protein, request_alignment_type, \
     request_alignment_text, encoding, request_alignment_format, request_show_similarity, \
-        request_show_line_position, request_color_symbols
+        request_show_line_position, request_color_symbols, request_image_format
 from .log import log
 
 from typing import Dict
@@ -32,7 +32,8 @@ def generate_figure_from_json(data: Dict) -> bytes:
         alignment=alignment,
         show_line_position=data[request_show_line_position],
         color_symbols=data[request_color_symbols],
-        show_similarity=data[request_show_similarity]
+        show_similarity=data[request_show_similarity],
+        image_format=data[request_image_format],
     )
 
 def b64_decode(string: str) -> str:

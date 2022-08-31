@@ -14,7 +14,11 @@
 <body>
 {{ if .Success }}
     <h1>Thanks for using our service!</h1>
-    <img id="aln_image" class="responsive_image" alt="Waiting for image..."/>
+    {{ if eq .ImageExt "pdf" }}
+    <iframe id="aln_image" class="responsive_image" alt="Waiting for image..." ></iframe>
+    {{ else }}
+    <img id="aln_image" class="responsive_image" alt="Waiting for image..." />
+    {{ end }}
     <p><a href="/">Go back</a></p>
 <script>
 
@@ -73,14 +77,36 @@ const callPythonApi = async () => {
     return Promise.resolve(myJson);
 }
 
+function resizeIFrameToFitContent( iFrame ) {
+    console.log(iFrame.contentWindow.document.body.scrollWidth)
+    iFrame.width  = iFrame.contentWindow.document.body.scrollWidth;
+    iFrame.height = iFrame.contentWindow.document.body.scrollHeight;
+}
+
 retryRequest(async () => callPythonApi())
 .then((data) => {
     console.log('retryRequest response :', data);
-    image64 = "data:image/png;base64," + data["image"];
-    document.getElementById('aln_image').src = image64;
+
+    var image_format;
+    switch (data['image_format']) {
+        case 'svg':
+            image_format = "image/svg+xml";
+            break;
+        case 'pdf':
+            image_format = "application/pdf";
+            break;
+        default:
+            image_format = "image/" + data['image_format']
+            break;
+    }
+
+    image64 = `data:${image_format};base64,${data["image"]}`;
+    var image = document.getElementById( 'aln_image' );
+    image.src = image64;
+    console.log("resizing")
+    resizeIFrameToFitContent(image)
 })
 .catch((err) => document.getElementById('aln_image').alt = "Error getting image, try to update page");
-
 </script>
 
 {{ else }}
@@ -116,7 +142,7 @@ retryRequest(async () => callPythonApi())
 
         <label>Color symbols:</label><br />
         <select id="color_symbols" name="color_symbols">
-            <option value="false" selected>Color boxes arund symbols</option>
+            <option value="false" selected>Color boxes around symbols</option>
             <option value="true">Color symbols</option>
         </select><br />
 
@@ -124,6 +150,16 @@ retryRequest(async () => callPythonApi())
         <select id="show_similarity" name="show_similarity">
             <option value="true" selected>Count similarity</option>
             <option value="false">No</option>
+        </select><br />
+
+        <label>Saving image format:</label><br />
+        <select id="image_format" name="image_format">
+            <option value="svg" selected>svg</option>
+            <option value="pdf">pdf</option>
+            <option value="eps">eps</option>
+            <option value="ps">ps</option>
+            <option value="png">png</option>
+            <option value="jpeg">jpeg</option>
         </select><br />
 
         <label>Alignment:</label><br />
