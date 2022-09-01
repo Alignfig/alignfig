@@ -6,6 +6,6 @@ metadata:
   labels:
     app: {{ .Chart.Name }}
 spec:
-  applicationDomain: {{ pluck .Values.werf.env .Values.ingress.host | first | default .Values.ingress.host._default }}
+  applicationDomain: {{ pluck .Values.werf.env .Values.ingress.host | first | default (printf .Values.ingress.host._default .Values.werf.env) }}
   applicationIngressCertificateSecretName: {{ pluck .Values.werf.env .Values.ingress.certificate_secret | first | default .Values.ingress.certificate_secret._default }}
   applicationIngressClassName: "nginx"
